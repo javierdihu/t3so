@@ -1,18 +1,36 @@
+/*
+    Tarea 3
+    Daniel Fleiderman
+    Javier Diaz
+ 
+    Paginas usadas
+        https://www.pacificsimplicity.ca/blog/simple-read-configuration-file-struct-example
+        http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+ 
+ */
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include "server.h"
 
-void dostuff(int);
+#define FILENAME "fileserver.conf"
+#define MAXBUF 1024
+#define DELIM "="
 
-void error (char *msg){
-    perror(msg);
-    exit(1);
-}
+struct config configurasound;
+
 
 int main (int argc, char *argv[])
 {
+    /* leer configuracion */
+    configurasound = get_config(FILENAME);
+    
+    
     int sockfd, newsockfd, portno, clilen, n, pid;
     //sockfd y newsockfd son arreglos bla bla
     //portno guarda el numero del puerto
@@ -34,7 +52,7 @@ int main (int argc, char *argv[])
     bzero((char *) &serv_addr, sizeof(serv_addr));
     //setea todos los valores en el buffer a cero.
     
-    portno=atoi(argv[1]);
+    portno = atoi(configurasound.port);
     //el numero del puerto donde el servidor va a escuchar
     
     serv_addr.sin_family = AF_INET;
@@ -50,6 +68,7 @@ int main (int argc, char *argv[])
     //La llamada bind() une al socket con la direccion
     
     listen(sockfd,5);
+    printf("Escuchando en el puerto %d\n", atoi(configurasound.port));
     // listen permite al proceso escuchar al socket. el primero argumento es el descriptor del archivo
     //el segundo argumento es el tamaño del backlog queue
     
@@ -74,6 +93,44 @@ int main (int argc, char *argv[])
     }
     return 0;
     
+}
+
+struct config get_config(char *filename)
+{
+    struct config configstruct;
+    FILE *file = fopen (filename, "r");
+    
+    if (file != NULL)
+    {
+        char line[MAXBUF];
+        int i = 0;
+        
+        while(fgets(line, sizeof(line), file) != NULL)
+        {
+            char *cfline;
+            cfline = strstr((char *)line,DELIM);
+            cfline = cfline + strlen(DELIM);
+            
+            switch (i){
+                case 0:
+                    memcpy(configstruct.port,cfline,strlen(cfline));
+                    break;
+                case 1:
+                    memcpy(configstruct.dir,cfline,strlen(cfline));
+                    break;
+            }
+            
+            i++;
+        }
+        fclose(file);
+    }
+    return configstruct;
+}
+
+
+void error (char *msg){
+    perror(msg);
+    exit(1);
 }
 
 void dostuff (int sock)
