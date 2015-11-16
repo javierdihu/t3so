@@ -10,5 +10,6 @@ struct config
 void dostuff(int);
 struct config get_config(char *);
 void error(char *);
-
+void leer_comandos(int);
+void parse_comando(char *);
 #endif

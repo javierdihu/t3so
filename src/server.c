@@ -23,6 +23,7 @@
 #define DELIM "="
 
 struct config configurasound;
+char *last_cmd;
 
 
 int main (int argc, char *argv[])
@@ -79,13 +80,14 @@ int main (int argc, char *argv[])
         if (newsockfd < 0)
             error ("Error al aceptar");
         pid = fork();
-        if(pid<0)
+        if(pid < 0)
             error("Error de fork");
-        if(pid==0){
+        if(pid == 0){
             close(sockfd);
-            while(1)
-            {
-            dostuff(newsockfd);
+            
+            while(1){
+                /* recibir comandos */
+                leer_comandos(newsockfd);
             }
             exit(0);
         }
@@ -133,6 +135,58 @@ void error (char *msg){
     exit(1);
 }
 
+void leer_comandos(int sock){
+    int n;
+    int buffer_size = 256;
+    char buffer[buffer_size];
+    bzero(buffer, buffer_size);
+    
+    n = read(sock, buffer, buffer_size - 1);
+    if(n < 0)
+        error("ERROR leyendo del socket");
+    printf("se leyeron %d bytes\n", n);
+    buffer[n - 1] = '\0';
+    
+    /* parsear comando */
+    parse_comando(buffer);
+    
+    
+    
+    
+    
+    n = write(sock,"I got your message",18);
+    if (n < 0) error("ERROR writing to socket");
+}
+
+void parse_comando(char *cmd){
+    printf("comparando %s con USER", cmd);
+    if(!strcmp(cmd, "USER")){
+        
+    }
+    else if(!strcmp(cmd, "PUT")){
+        
+    }
+    else if(!strcmp(cmd, "GET")){
+        
+    }
+    else if(!strcmp(cmd, "LS")){
+        
+    }
+    else if(!strcmp(cmd, "RM")){
+        
+    }
+    else if(!strcmp(cmd, "SHARE")){
+        
+    }
+    else if(!strcmp(cmd, "CLOSE")){
+        
+    }
+    else
+        error("COMANDO INVALIDO");
+    
+}
+
+
 void dostuff (int sock)
 {
     int n;
@@ -140,11 +194,17 @@ void dostuff (int sock)
     
     bzero(buffer,256);
     n = read(sock,buffer,255);
+    
     if (n < 0) error("ERROR reading from socket");
+    
     printf("Here is the message: %s\n",buffer);
+    /* respuesta */
     n = write(sock,"I got your message",18);
+    
     if (n < 0) error("ERROR writing to socket");
     
+    
+    /* ejemplo ls */
     FILE *fp;
     char path[1035];
     char ans[4000];
