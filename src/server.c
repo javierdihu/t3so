@@ -224,12 +224,14 @@ void set_user(int sock){
     int j;
     user = arg_1;
     char out[300] = "User identified as ";
+    char out2[3] = "OK\n";
+    char out3[4] = "END\n";
     strcat(out, user);
     j = clean_out(out, 300);
     
     /* enviar mensaje diciendo que el usuario se puso */
     
-    n = write(sock,"OK",2);
+    n = write(sock,out2,3);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
@@ -237,7 +239,11 @@ void set_user(int sock){
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
-    n = write(sock,"END",3);
+    n = write(sock, "\n",1);
+    if (n < 0) error("ERROR writing to socket");
+    printf("%d bytes enviados al cliente\n", n);
+    
+    n = write(sock,out3,4);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
