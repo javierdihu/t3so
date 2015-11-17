@@ -34,6 +34,8 @@ char * user;
 int main (int argc, char *argv[])
 {
     last_cmd = 0;
+    user = malloc(sizeof(char)*256);
+    memset(user, '\0', 256);
     /* leer configuracion */
     configurasound = get_config(FILENAME);
     
@@ -222,7 +224,10 @@ void run_accion(int sock){
 void set_user(int sock){
     int n;
     int j;
-    user = arg_1;
+    
+    memset(user, '\0', 256);
+    strcpy(user, arg_1);
+    
     char out[300] = "User identified as ";
     char out2[3] = "OK\n";
     char out3[4] = "END\n";
@@ -235,26 +240,26 @@ void set_user(int sock){
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
+    
     n = write(sock, out,j);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
-    n = write(sock, "\n",1);
-    if (n < 0) error("ERROR writing to socket");
-    printf("%d bytes enviados al cliente\n", n);
     
     n = write(sock,out3,4);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
     
-    
+    free(arg_1);
 }
 
 int clean_out(char *out, int n){
     int i;
     for(i = 0; i < n; i++){
-        if(out[i] == '\0')
-            return i;
+        if(out[i] == '\0'){
+            out[i] = '\n';
+            return i + 1;
+        }
     }
     return n;
 }

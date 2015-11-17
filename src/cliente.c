@@ -81,38 +81,8 @@ int main(int argc, char *argv[])
                 if(check_end(buffer))
                     break;
                 
-                
             }
             
-            
-            
-            /*
-            bzero(buffer,256);
-            n = read(sockfd, buffer, 255);
-            
-            if (n < 0)
-                error("error leyendo del socket");
-            
-            printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
-            */
-            
-            /* hasta aqui hemos recibido el primer mensaje que puede
-                ser OK o FAIL 
-             */
-            
-            /* seguimos recibiendo mensajes */
-            
-            /*
-            while(!check_end(buffer)){
-                bzero(buffer,256);
-                n = read(sockfd, buffer, 255);
-                
-                if (n < 0)
-                    error("error leyendo del socket");
-            
-                printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
-            }
-             */
             printf("[+] SALIO DEL LOOP\n");
         }
     
