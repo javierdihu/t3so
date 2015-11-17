@@ -3,5 +3,5 @@
 
 int check_end(char *);
 int check_end_server(char *);
-
+int parse_msj(char *);
 #endif /* cliente_h */

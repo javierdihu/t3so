@@ -6,7 +6,7 @@ HEADERS = HEADERS_CLIENT HEADERS_SERVER
 OBJECTS_CLIENT = cliente.o
 OBJECTS_SERVER = server.o
 
-CFLAGS = -Wall -std=c99 -g
+CFLAGS = -Wall -g
 
 default: server cliente
 

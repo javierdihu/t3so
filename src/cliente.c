@@ -71,20 +71,14 @@ int main(int argc, char *argv[])
             hayamos recibido END
          */
         if(check_end(buffer)){
-            
-            while(1){
-                bzero(buffer,256);
-                n = read(sockfd, buffer, 255);
+            bzero(buffer,256);
+            n = read(sockfd, buffer, 255);
                 
-                if (n < 0)
-                    error("error leyendo del socket");
+            if (n < 0)
+                error("error leyendo del socket");
                 
-                printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
-                if(check_end_server(buffer))
-                    break;
-                
-                
-            }
+                /* parsear el mensaje del server */
+            parse_msj(buffer);
             
             printf("[+] SALIO DEL LOOP\n");
         }
@@ -92,6 +86,33 @@ int main(int argc, char *argv[])
     }
     
     return 0;
+}
+int parse_msj(char *buff){
+    char buff2[256];
+    int seguir = 1;
+    int jj = 0;
+    
+    while(seguir){
+        int ii;
+        memset(buff2, '\0', 256);
+        
+        for(ii = 0; ii < 256 - jj; ii++){
+            buff2[ii] = buff[ii + jj];
+            if(buff[ii + jj] == '#'){
+                jj = ii + jj + 1;
+                buff2[ii] = '\n';
+                if(check_end(buff2)){
+                    seguir = 0;
+                    printf("S: %s\n", buff2);
+                    return 1;
+                }
+                break;
+            }
+        }
+        printf("S: %s\n", buff2);
+    }
+    
+    return 1;
 }
 
 int check_end(char *buffer){

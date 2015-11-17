@@ -231,21 +231,41 @@ void run_accion(int sock){
 }
 
 void set_user(int sock){
-    int j;
-    
     memset(user, '\0', 256);
     strcpy(user, arg_1);
     
-    char out[256] = "User identified as ";
-    strcat(out, user);
-    j = clean_out(out, 256);
+    char out[256];
+    memset(out, '\0', 256);
+    char *end = "END#";
+    char *msj = "Ok#User identified as: \0";
+    int i, j ,k;
+    for(i = 0; i < 256; i++){
+        out[i] = msj[i];
+        if(msj[i] == '\0')
+            break;
+    }
     
+    for(k = 0; k < strlen(user); k++){
+        out[k + i] = user[k];
+    }
+    i = i + k;
+    out[i] = '#';
+    i+=1;
+    for(j = 0; j < 4; j++){
+        out[i + j] = end[j];
+    }
+    
+    send_msg(out, sock);
     /* enviar mensaje diciendo que el usuario se puso */
     
-    send_msg("OK", sock);
-    send_msg(out, sock);
-    send_msg("END", sock);
+    
+    
     /*
+    send_msg("OK\n", sock);
+    send_msg(out, sock);
+    send_msg("END\n", sock);
+    */
+     /*
     n = write(sock, out,j);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
@@ -312,26 +332,6 @@ int parse_argumento(char *input){
     printf("ARGUMENTO PARSIADO: %s\n", arg);
     return 1;
     
-    /*
-    
-    char delim[2] = {':', ' '};
-    char arg_name[5] = {'0','0','0','0','\0'};
-    char *arg = malloc(sizeof(char) * 256);
-    char *temp;
-    
-    if(strlen(input) >= 4){
-        memcpy(arg_name, input, 4);
-        if(!strcmp(arg_name, "Name")){
-            temp = strstr(input, delim);
-            temp = temp + 2;
-            memcpy(arg, temp, strlen(temp));
-            last_arg = arg;
-            return 1;
-        }
-        
-    }
-    return 0;
-     */
 }
 
 char *get_input(int sock){
