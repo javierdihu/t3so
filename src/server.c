@@ -23,11 +23,17 @@
 #define DELIM "="
 
 struct config configurasound;
-char *last_cmd;
+int last_cmd;
+/* liberar last_arg despues de usarlo */
+char * last_arg;
+char * arg_1;
+char * arg_2;
+char * user;
 
 
 int main (int argc, char *argv[])
 {
+    last_cmd = 0;
     /* leer configuracion */
     configurasound = get_config(FILENAME);
     
@@ -136,54 +142,182 @@ void error (char *msg){
 }
 
 void leer_comandos(int sock){
-    int n;
-    int buffer_size = 256;
-    char buffer[buffer_size];
-    bzero(buffer, buffer_size);
+    int success_cmd = 0;
+    int success_arg = 0;
+    char *args;
+   
+    char *input = get_input(sock);
     
-    n = read(sock, buffer, buffer_size - 1);
-    if(n < 0)
-        error("ERROR leyendo del socket");
-    printf("se leyeron %d bytes\n", n);
-    buffer[n - 1] = '\0';
+    /* parsear comando, retorna 1 si el comando era valido */
+    success_cmd = parse_comando(input);
+    if(success_cmd)
+        printf("comando valido\n");
+    free(input);
     
-    /* parsear comando */
-    parse_comando(buffer);
+    /* leer argumentos si el comando anterior fue valido */
+    if(success_cmd){
+        if(last_cmd == 1 ||
+           last_cmd == 3 ||
+           last_cmd == 5 ||
+           last_cmd == 6){
+            
+            input = get_input(sock);
+            success_arg = parse_argumento(input);
+            free(input);
+            if(success_arg){
+                arg_1 = last_arg;
+                /* esperar END si el argumento era valido */
+                input = get_input(sock);
+                if(!strcmp(input, "END")){
+                    run_accion(sock);
+                }
+                free(input);
+            }
+        }
+        else if(last_cmd == 2){
+            input = get_input(sock);
+            success_arg = parse_argumento(input);
+            free(input);
+            if(success_arg){
+                arg_1 = last_arg;
+                input = get_input(sock);
+                success_arg = parse_argumento(input);
+                free(input);
+                if(success_arg){
+                    arg_2 = last_arg;
+                    /* tenemos los dos argumentos listos, esperar END */
+                    input = get_input(sock);
+                    if(!strcmp(input, "END")){
+                        run_accion(sock);
+                    }
+                    free(input);
+                }
+            }
+            
+        }
+        /* manejar caso de ls y close que no reciben argumentos*/
+        else{
+            input = get_input(sock);
+            if(!strcmp(input, "END")){
+                run_accion(sock);
+            }
+            free(input);
+        }
+        
+    }
     
-    
-    
-    
-    
-    n = write(sock,"I got your message",18);
-    if (n < 0) error("ERROR writing to socket");
 }
 
-void parse_comando(char *cmd){
-    printf("comparando %s con USER", cmd);
-    if(!strcmp(cmd, "USER")){
+void run_accion(int sock){
+    switch(last_cmd){
+        case 1:
+            set_user(sock);
+            break;
+        case 2:
+            break;
+            
+    }
+}
+
+void set_user(int sock){
+    int n;
+    int j;
+    user = arg_1;
+    char out[300] = "User identified as ";
+    strcat(out, user);
+    j = clean_out(out, 300);
+    
+    /* enviar mensaje diciendo que el usuario se puso */
+    
+    n = write(sock,"OK",2);
+    if (n < 0) error("ERROR writing to socket");
+    printf("%d bytes enviados al cliente\n", n);
+    
+    n = write(sock, out,j);
+    if (n < 0) error("ERROR writing to socket");
+    printf("%d bytes enviados al cliente\n", n);
+    
+    n = write(sock,"END",3);
+    if (n < 0) error("ERROR writing to socket");
+    printf("%d bytes enviados al cliente\n", n);
+    
+    
+}
+
+int clean_out(char *out, int n){
+    int i;
+    for(i = 0; i < n; i++){
+        if(out[i] == '\0')
+            return i;
+    }
+    return n;
+}
+
+int parse_argumento(char *input){
+    char delim[2] = {':', ' '};
+    char arg_name[5] = {'0','0','0','0','\0'};
+    char *arg = malloc(sizeof(char) * 256);
+    char *temp;
+    
+    if(strlen(input) >= 4){
+        memcpy(arg_name, input, 4);
+        if(!strcmp(arg_name, "Name")){
+            temp = strstr(input, delim);
+            temp = temp + 2;
+            memcpy(arg, temp, strlen(temp));
+            last_arg = arg;
+            return 1;
+        }
         
+    }
+    return 0;
+}
+
+char *get_input(int sock){
+    int n;
+    int buffer_size = 256;
+    char *buffer = malloc(sizeof(char) * buffer_size);
+    
+    
+    bzero(buffer, buffer_size);
+    n = read(sock, buffer, buffer_size - 1);
+    
+    if(n < 0)
+        error("ERROR leyendo del socket");
+    
+    buffer[n - 1] = '\0';
+    printf("[*] LEIDO : %s [*]\n", buffer);
+    return buffer;
+}
+
+int parse_comando(char *cmd){
+    if(!strcmp(cmd, "USER")){
+        last_cmd = 1;
     }
     else if(!strcmp(cmd, "PUT")){
-        
+        last_cmd = 2;
     }
     else if(!strcmp(cmd, "GET")){
-        
+        last_cmd = 3;
     }
     else if(!strcmp(cmd, "LS")){
-        
+        last_cmd = 4;
     }
     else if(!strcmp(cmd, "RM")){
-        
+        last_cmd = 5;
     }
     else if(!strcmp(cmd, "SHARE")){
-        
+        last_cmd = 6;
     }
     else if(!strcmp(cmd, "CLOSE")){
-        
+        last_cmd = 7;
     }
-    else
+    else{
         error("COMANDO INVALIDO");
+        return 0;
+    }
     
+    return 1;
 }
 
 

@@ -11,5 +11,10 @@ void dostuff(int);
 struct config get_config(char *);
 void error(char *);
 void leer_comandos(int);
-void parse_comando(char *);
+char * get_input(int sock);
+int parse_comando(char *);
+int parse_argumento(char *);
+void run_accion(int);
+void set_user(int);
+int clean_out(char *, int);
 #endif

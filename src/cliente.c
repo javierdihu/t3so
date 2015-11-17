@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include "cliente.h"
 
 void error(char *msg)
 {
@@ -56,6 +57,7 @@ int main(int argc, char *argv[])
         printf("Please enter the message: ");
         bzero(buffer,256);
         fgets(buffer,255,stdin);
+        printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer);
         
         
         /* escribir en el socket */
@@ -64,15 +66,48 @@ int main(int argc, char *argv[])
             error("no se pudo escribir al socket");
         
         
-        /* leer del socket */
-        bzero(buffer,256);
-        n = read(sockfd, buffer, 255);
-        
-        if (n < 0)
-            error("error leyendo del socket");
-        
-        printf("%s\n",buffer);
+        /* leer del socket despues que hayamos mandado END y hasta que 
+            hayamos recibido END
+         */
+        if(check_end(buffer)){
+            
+            bzero(buffer,256);
+            n = read(sockfd, buffer, 255);
+            
+            if (n < 0)
+                error("error leyendo del socket");
+            
+            printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
+            /* hasta aqui hemos recibido el primer mensaje que puede
+                ser OK o FAIL 
+             */
+            
+            /* seguimos recibiendo mensajes */
+            while(!check_end(buffer)){
+                bzero(buffer,256);
+                n = read(sockfd, buffer, 255);
+                
+                if (n < 0)
+                    error("error leyendo del socket");
+            
+                printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
+            }
+            
+        }
+    
     }
     
     return 0;
 }
+
+int check_end(char *buffer){
+    int i;
+    char end[4] = {'E','N','D','\n'};
+    for(i = 0; i < 4; i++){
+        if(buffer[i] != end[i])
+            return 0;
+    }
+    return 1;
+}
+
+
