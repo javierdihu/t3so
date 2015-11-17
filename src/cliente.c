@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
         
         
         /* escribir en el socket */
+        printf("[+] ESCRIBIENDO %s\n", buffer);
         n = write(sockfd, buffer, strlen(buffer));
         if (n < 0)
             error("no se pudo escribir al socket");
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
             hayamos recibido END
          */
         if(check_end(buffer)){
+            
             while(1){
                 bzero(buffer,256);
                 n = read(sockfd, buffer, 255);
@@ -78,8 +80,9 @@ int main(int argc, char *argv[])
                     error("error leyendo del socket");
                 
                 printf("[+] CLIENTE RECIBIO: %s [+]\n",buffer);
-                if(check_end(buffer))
+                if(check_end_server(buffer))
                     break;
+                
                 
             }
             
@@ -101,4 +104,13 @@ int check_end(char *buffer){
     return 1;
 }
 
+int check_end_server(char *buffer){
+    int i;
+    char end[3] = {'E','N','D'};
+    for(i = 0; i < 3; i++){
+        if(buffer[i] != end[i])
+            return 0;
+    }
+    return 1;
+}
 

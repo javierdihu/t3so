@@ -148,6 +148,7 @@ void leer_comandos(int sock){
     int success_arg = 0;
     char *args;
    
+    printf("[*] ESPERANDO COMANDO\n");
     char *input = get_input(sock);
     
     /* parsear comando, retorna 1 si el comando era valido */
@@ -163,17 +164,23 @@ void leer_comandos(int sock){
            last_cmd == 5 ||
            last_cmd == 6){
             
+            printf("[*] ESPERANDO ARGUMENTO\n");
             input = get_input(sock);
             success_arg = parse_argumento(input);
             free(input);
+            printf("---viendo que wea el argumento\n");
             if(success_arg){
                 arg_1 = last_arg;
                 /* esperar END si el argumento era valido */
+                printf("[*] ESPERANDO END\n");
                 input = get_input(sock);
                 if(!strcmp(input, "END")){
                     run_accion(sock);
                 }
                 free(input);
+            }
+            else{
+                printf("[*]FALLO LECTURA ARGUMENTO\n");
             }
         }
         else if(last_cmd == 2){
@@ -222,49 +229,89 @@ void run_accion(int sock){
 }
 
 void set_user(int sock){
-    int n;
     int j;
     
     memset(user, '\0', 256);
     strcpy(user, arg_1);
     
-    char out[300] = "User identified as ";
-    char out2[3] = "OK\n";
-    char out3[4] = "END\n";
+    char out[256] = "User identified as ";
     strcat(out, user);
-    j = clean_out(out, 300);
+    j = clean_out(out, 256);
     
     /* enviar mensaje diciendo que el usuario se puso */
     
-    n = write(sock,out2,3);
-    if (n < 0) error("ERROR writing to socket");
-    printf("%d bytes enviados al cliente\n", n);
-    
-    
+    send_msg("OK", sock);
+    send_msg(out, sock);
+    send_msg("END", sock);
+    /*
     n = write(sock, out,j);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
-    
-    
+   
     n = write(sock,out3,4);
     if (n < 0) error("ERROR writing to socket");
     printf("%d bytes enviados al cliente\n", n);
+    */
     
     free(arg_1);
 }
+
+void send_msg(char *msg, int sock){
+    int n;
+    
+    printf("[*] SE INTENTA MANDAR: %s\n", msg);
+    
+    n = write(sock, msg, strlen(msg));
+    if (n < 0) error ("ERROR writing to socket");
+    
+    printf("%d bytes enviados al cliente\n", n);
+    return;
+}
+
 
 int clean_out(char *out, int n){
     int i;
     for(i = 0; i < n; i++){
         if(out[i] == '\0'){
-            out[i] = '\n';
-            return i + 1;
+            /*out[i] = '\n';*/
+            return i;
         }
     }
     return n;
 }
 
 int parse_argumento(char *input){
+    printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
+    char *arg;
+    
+    int i, j, k, n;
+    k = 0;
+    j = 0;
+    for(i = 0; i < 256; i++){
+        if(input[i] == ':'){
+            j = i + 2;
+        }
+        if(input[i] == '\0')
+            k = i;
+    }
+    if(j == 0){
+        printf("NO SE ENCONTRO EL DELIMITADOR\n");
+        return 0;
+    }
+    n = k - j + 1;
+    arg = malloc(sizeof(char) * n);
+    
+    int ii;
+    for(ii = 0; ii < n; ii++){
+        arg[ii] = input[ii+j];
+        
+    }
+    last_arg = arg;
+    printf("ARGUMENTO PARSIADO: %s\n", arg);
+    return 1;
+    
+    /*
+    
     char delim[2] = {':', ' '};
     char arg_name[5] = {'0','0','0','0','\0'};
     char *arg = malloc(sizeof(char) * 256);
@@ -282,6 +329,7 @@ int parse_argumento(char *input){
         
     }
     return 0;
+     */
 }
 
 char *get_input(int sock){
