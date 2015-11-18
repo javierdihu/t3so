@@ -16,6 +16,9 @@ void error(char *msg)
 
 int main(int argc, char *argv[])
 {
+    int last_cmd = 0;
+    int arg_1_enviado = 0;
+    int buff_size_put = 0;
     int sockfd, portno, n;
     
     struct sockaddr_in serv_addr;
@@ -54,14 +57,39 @@ int main(int argc, char *argv[])
     /* aca empieza a tomar input */
     
     while(1){
-        printf("Please enter the message: ");
+        if(last_cmd == 2){
+            printf("C: ");
+            bzero(buffer,256);
+            fgets(buffer,255,stdin);
+            
+            n = write(sockfd, buffer, strlen(buffer));
+            if (n < 0)
+                error("no se pudo escribir al socket");
+            
+            if(!arg_1_enviado){
+                /* guardar valor ingresado */
+                arg_1_enviado = 1;
+            }
+            else{
+                buff_size_put = atoi(buffer);
+                arg_1_enviado = 0;
+                last_cmd = 0;
+                
+                /* enviar archivo con buffer tamaño nuevo*/
+                put(sockfd, buff_size_put);
+            }
+            
+            continue;
+        }
+            
+        printf("C: ");
         bzero(buffer,256);
         fgets(buffer,255,stdin);
-        printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer);
+        //printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer);
         
         
         /* escribir en el socket */
-        printf("[+] ESCRIBIENDO %s\n", buffer);
+        //printf("[+] ESCRIBIENDO %s\n", buffer);
         n = write(sockfd, buffer, strlen(buffer));
         if (n < 0)
             error("no se pudo escribir al socket");
@@ -77,20 +105,35 @@ int main(int argc, char *argv[])
             if (n < 0)
                 error("error leyendo del socket");
                 
-                /* parsear el mensaje del server */
+            /* parsear el mensaje del server, aca se maneja que
+                el server haya mandando END
+             */
             parse_msj(buffer);
-            
-            printf("[+] SALIO DEL LOOP\n");
         }
-    
+        last_cmd = check_cmd(buffer);
     }
     
     return 0;
 }
+
+void put(int sock, int buff_size){
+    int n;
+    char buffer[buff_size];
+    bzero(buffer, buff_size);
+    fgets(buffer, buff_size - 1, stdin);
+    
+    n = write(sock, buffer, strlen(buffer));
+    if (n < 0)
+        error("no se pudo escribir al socket");
+
+}
+
 int parse_msj(char *buff){
     char buff2[256];
     int seguir = 1;
     int jj = 0;
+    int ret = 0;
+    
     
     while(seguir){
         int ii;
@@ -99,12 +142,12 @@ int parse_msj(char *buff){
         for(ii = 0; ii < 256 - jj; ii++){
             buff2[ii] = buff[ii + jj];
             if(buff[ii + jj] == '#'){
+                if(buff[ii + jj + 1] == '\0')
+                    seguir = 0;
                 jj = ii + jj + 1;
                 buff2[ii] = '\n';
                 if(check_end(buff2)){
-                    seguir = 0;
-                    printf("S: %s\n", buff2);
-                    return 1;
+                    ret = 1;
                 }
                 break;
             }
@@ -112,7 +155,7 @@ int parse_msj(char *buff){
         printf("S: %s\n", buff2);
     }
     
-    return 1;
+    return ret;
 }
 
 int check_end(char *buffer){
@@ -122,6 +165,35 @@ int check_end(char *buffer){
         if(buffer[i] != end[i])
             return 0;
     }
+    return 1;
+}
+
+int check_cmd(char *cmd){
+    if(!strcmp(cmd, "USER")){
+        return 1;
+    }
+    else if(!strcmp(cmd, "PUT")){
+        return 2;
+    }
+    else if(!strcmp(cmd, "GET")){
+        return 3;
+    }
+    else if(!strcmp(cmd, "LS")){
+        return 4;
+    }
+    else if(!strcmp(cmd, "RM")){
+        return 5;
+    }
+    else if(!strcmp(cmd, "SHARE")){
+        return 6;
+    }
+    else if(!strcmp(cmd, "CLOSE")){
+        return 7;
+    }
+    else{
+        return 0;
+    }
+    
     return 1;
 }
 

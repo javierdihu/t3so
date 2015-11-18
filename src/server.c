@@ -25,18 +25,31 @@
 #define DELIM "="
 
 struct config configurasound;
+archivo *archivos;
 int last_cmd;
 /* liberar last_arg despues de usarlo */
 char * last_arg;
 char * arg_1;
 char * arg_2;
 char * user;
+int file_cnt;
+char *new_file;
 
 
 int main (int argc, char *argv[])
 {
+    file_cnt = 32;
     last_cmd = 0;
     user = malloc(sizeof(char)*256);
+    archivos = malloc(sizeof(archivo)*32);
+    int iii;
+    for(iii = 0; iii < file_cnt; iii++){
+        archivos[iii].name = NULL;
+        archivos[iii].owner = NULL;
+        archivos[iii].shared = -1;
+    }
+    
+    
     memset(user, '\0', 256);
     /* leer configuracion */
     configurasound = get_config(FILENAME);
@@ -149,7 +162,7 @@ void leer_comandos(int sock){
     int success_cmd = 0;
     int success_arg = 0;
     char *args;
-   
+    
     printf("[*] ESPERANDO COMANDO\n");
     char *input = get_input(sock);
     
@@ -186,16 +199,26 @@ void leer_comandos(int sock){
             }
         }
         else if(last_cmd == 2){
+            /* manejar PUT */
             input = get_input(sock);
             success_arg = parse_argumento(input);
             free(input);
             if(success_arg){
                 arg_1 = last_arg;
+                printf("ARG 1 LISTO: %s\n", arg_1);
                 input = get_input(sock);
                 success_arg = parse_argumento(input);
                 free(input);
                 if(success_arg){
                     arg_2 = last_arg;
+                    printf("ARG 2 LISTO: %s\n", arg_2);
+                    /* con el argumento 2 sabemos el tamaño del buffer
+                        que necesitamos para leer el archivo
+                     */
+                    int size = atoi(arg_2);
+                    new_file = get_file(sock, size);
+                    
+                    printf("falta el END\n");
                     /* tenemos los dos argumentos listos, esperar END */
                     input = get_input(sock);
                     if(!strcmp(input, "END")){
@@ -225,6 +248,12 @@ void run_accion(int sock){
             set_user(sock);
             break;
         case 2:
+            put_file(sock);
+            break;
+        case 3:
+            break;
+        case 4:
+            ls(sock);
             break;
             
     }
@@ -234,9 +263,14 @@ void set_user(int sock){
     memset(user, '\0', 256);
     strcpy(user, arg_1);
     
+    /*
+        Manda el output a lo bruto, concatena todo el mensaje
+        asi: Ok#User identified as: user#END#
+     
+     */
     char out[256];
     memset(out, '\0', 256);
-    char *end = "END#";
+    char *end = "END#\0";
     char *msj = "Ok#User identified as: \0";
     int i, j ,k;
     for(i = 0; i < 256; i++){
@@ -256,26 +290,12 @@ void set_user(int sock){
     }
     
     send_msg(out, sock);
-    /* enviar mensaje diciendo que el usuario se puso */
-    
-    
-    
-    /*
-    send_msg("OK\n", sock);
-    send_msg(out, sock);
-    send_msg("END\n", sock);
-    */
-     /*
-    n = write(sock, out,j);
-    if (n < 0) error("ERROR writing to socket");
-    printf("%d bytes enviados al cliente\n", n);
-   
-    n = write(sock,out3,4);
-    if (n < 0) error("ERROR writing to socket");
-    printf("%d bytes enviados al cliente\n", n);
-    */
     
     free(arg_1);
+}
+
+void ls(int sock){
+    
 }
 
 void send_msg(char *msg, int sock){
@@ -295,11 +315,65 @@ int clean_out(char *out, int n){
     int i;
     for(i = 0; i < n; i++){
         if(out[i] == '\0'){
-            /*out[i] = '\n';*/
             return i;
         }
     }
     return n;
+}
+
+void create_file(char *buff, char *name, int size){
+    int i;
+    int listo = 0;
+    for(i = 0; i < file_cnt; i++){
+        if(archivos[i].shared == -1){
+            archivos[i].name = name;
+            archivos[i].owner = user;
+            archivos[i].shared = 1;
+            listo = 1;
+        }
+    }
+    /* manejar caso de que ya esten llena la lista de archivos */
+    if(!listo){
+        
+    }
+    
+    FILE *fp;
+    fp = fopen(name, "w");
+    fwrite(buff, 1, size, fp);
+    fclose(fp);
+    
+    free(buff);
+    return;
+}
+
+void put_file(int sock){
+    create_file(new_file, arg_1, atoi(arg_2));
+    free(arg_2);
+    
+    
+    char out[256];
+    memset(out, '\0', 256);
+    char *end = "END#\0";
+    char *msj = "Ok#File saved as: \0";
+    int i, j ,k;
+    for(i = 0; i < 256; i++){
+        out[i] = msj[i];
+        if(msj[i] == '\0')
+            break;
+    }
+    
+    for(k = 0; k < strlen(arg_1); k++){
+        out[k + i] = arg_1[k];
+    }
+    i = i + k;
+    out[i] = '#';
+    i+=1;
+    for(j = 0; j < 4; j++){
+        out[i + j] = end[j];
+    }
+    
+    send_msg(out, sock);
+    
 }
 
 int parse_argumento(char *input){
@@ -348,6 +422,22 @@ char *get_input(int sock){
     
     buffer[n - 1] = '\0';
     printf("[*] LEIDO : %s [*]\n", buffer);
+    return buffer;
+}
+
+char *get_file(int sock, int size){
+    printf("ESPERANDO ARCHIVO\n");
+    int n;
+    char *buffer = malloc(sizeof(char) * size);
+    
+    bzero(buffer, size);
+    n = read(sock, buffer, size - 1);
+    
+    if(n < 0)
+        error("ERROR leyendo del socket");
+    
+    buffer[n - 1] = '\0';
+    printf("[*] LEIDO archivo : %s [*]\n", buffer);
     return buffer;
 }
 
