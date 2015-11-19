@@ -114,11 +114,11 @@ int main(int argc, char *argv[])
                 n = read(sockfd, buffer, 256);
                 printf("[GET] recibido %s\n", buffer);
                 if(!strcmp("FAIL", buffer)){
-                    printf("ENTRO ACA\n");
                     while(1){
-                        printf("leyendo mensajes de error\n");
-                        bzero(buffer, 256);
+                        memset(buffer,'\0', 256);
                         n = read(sockfd, buffer, 256);
+                        if (n < 0)
+                            printf("ERROR AL LEER MENSAJES DE ERROR\n");
                         printf("S: ");
                         printf("%s\n", buffer);
                         if(check_end_server(buffer))
@@ -128,28 +128,31 @@ int main(int argc, char *argv[])
                     last_cmd = 0;
                     continue;
                 }
-                /* hay que recibir el tamaño del archivo */
-                bzero(buffer, 256);
-                n = read(sockfd, buffer, 256);
-                printf("[GET] recibido: size = %s\n", buffer);
-                parse_argumento(buffer);
-                size = atoi(buffer);
-                printf("[GET] tamaño guardado: %d\n", size);
-                /* preparar el buffer para recibir el archivo*/
-                char buff_file[size];
-                n = read(sockfd, buff_file, size);
+                if(!strcmp("OK", buffer)){
+                    
+                    /* hay que recibir el tamaño del archivo */
+                    bzero(buffer, 256);
+                    n = read(sockfd, buffer, 256);
+                    printf("[GET] recibido: size = %s\n", buffer);
+                    parse_argumento(buffer);
+                    size = atoi(buffer);
+                    printf("[GET] tamaño guardado: %d\n", size);
+                    /* preparar el buffer para recibir el archivo*/
+                    char buff_file[size];
+                    n = read(sockfd, buff_file, size);
                 
 
-                FILE *fp;
-                fp = fopen("nombrefijo.txt", "w");
-                fwrite(buff_file, 1, size, fp);
-                fclose(fp);
-                printf("archivo creado!\n");
-                last_cmd = 0;
+                    FILE *fp;
+                    fp = fopen("nombrefijo.txt", "w");
+                    fwrite(buff_file, 1, size, fp);
+                    fclose(fp);
+                    printf("archivo creado!\n");
+                    last_cmd = 0;
+                }
                 
             }
             else{
-
+                /* esto procesa USER */
                 bzero(buffer,256);
                 n = read(sockfd, buffer, 255);
                 

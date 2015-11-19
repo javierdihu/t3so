@@ -260,6 +260,7 @@ void run_accion(int sock){
 }
 
 void run_get(int sock){
+    printf("[GET] buscando archivo...\n");
     char buffer[256];
     char *buff_file;
     char buff_size[20];
@@ -269,15 +270,18 @@ void run_get(int sock){
    for(i = 0; i < file_cnt; i++){
        if(!strcmp(archivos[i].name, filename)){
            size = archivos[i].size;
-           if(!strcmp(archivos[i].owner, user))
+           if(!strcmp(archivos[i].owner, user)){
                ok = 1;
+               printf("[GET] dueño: %s\n", archivos[i].owner);
+               printf("[GET] user pidiendolo: %s\n", user);
+           }
            printf("Se encontro el archivo. Tamaño: %d\n",size);
            break;
        }
    }
    if(ok){
        memset(buffer, '\0', 256);
-       strcpy(buffer, "Ok");
+       strcpy(buffer, "OK");
        printf("ENVIANDO: %s\n", buffer);
        write(sock, buffer, 256);
 
@@ -298,19 +302,21 @@ void run_get(int sock){
        free(buff_file);
    } 
    else{
+       int N;
        memset(buffer, '\0', 256);
        strcpy(buffer, "FAIL");
        printf("ENVIANDO: %s\n", buffer);
-       write(sock, buffer, 256);
+       N = write(sock, buffer, 256);
         
        memset(buffer, '\0', 256);
        strcpy(buffer, "Message: blablabla");
        printf("ENVIANDO: %s\n", buffer);
+       write(sock, buffer, 256);
        
        memset(buffer, '\0', 256);
        strcpy(buffer, "END");
        printf("ENVIANDO: %s\n", buffer);
-       
+       write(sock, buffer, 256);
          
    }
 
