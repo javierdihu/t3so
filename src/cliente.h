@@ -6,4 +6,6 @@ int check_end_server(char *);
 int check_cmd(char *);
 int parse_msj(char *);
 void put(int sock, int buff_size);
+void newline_to_zero(char *);
+void parse_argumento(char *);
 #endif /* cliente_h */

@@ -426,12 +426,12 @@ char *get_input(int sock){
 }
 
 char *get_file(int sock, int size){
-    printf("ESPERANDO ARCHIVO\n");
+    printf("ESPERANDO ARCHIVO TAMAÑO %d\n", size);
     int n;
-    char *buffer = malloc(sizeof(char) * size);
+    char *buffer = malloc(sizeof(char) * (size + 1));
     
-    bzero(buffer, size);
-    n = read(sock, buffer, size - 1);
+    bzero(buffer, (size + 1));
+    n = read(sock, buffer, size + 1);
     
     if(n < 0)
         error("ERROR leyendo del socket");

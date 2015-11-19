@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
             printf("C: ");
             bzero(buffer,256);
             fgets(buffer,255,stdin);
+            printf("[put] CLIENTE ENVIA MSJ : %s[+]\n", buffer); 
             
             n = write(sockfd, buffer, strlen(buffer));
             if (n < 0)
@@ -69,9 +70,15 @@ int main(int argc, char *argv[])
             if(!arg_1_enviado){
                 /* guardar valor ingresado */
                 arg_1_enviado = 1;
+                last_cmd = 2;
             }
             else{
+                printf("[put] se envio 2do argumento: %s\n", buffer);
+                newline_to_zero(buffer);
+                parse_argumento(buffer);
+                printf("[put] 2do argumento to int: %d\n", atoi(buffer));
                 buff_size_put = atoi(buffer);
+                printf("buff size put: %s\n",buffer);
                 arg_1_enviado = 0;
                 last_cmd = 0;
                 
@@ -85,8 +92,7 @@ int main(int argc, char *argv[])
         printf("C: ");
         bzero(buffer,256);
         fgets(buffer,255,stdin);
-        //printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer);
-        
+        printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer); 
         
         /* escribir en el socket */
         //printf("[+] ESCRIBIENDO %s\n", buffer);
@@ -110,6 +116,7 @@ int main(int argc, char *argv[])
              */
             parse_msj(buffer);
         }
+        printf("guardamos el ultimo comando enviado\n");
         last_cmd = check_cmd(buffer);
     }
     
@@ -117,15 +124,62 @@ int main(int argc, char *argv[])
 }
 
 void put(int sock, int buff_size){
+    printf("[PUT] enviando archivo tamaño %d\n", buff_size);
     int n;
     char buffer[buff_size];
     bzero(buffer, buff_size);
-    fgets(buffer, buff_size - 1, stdin);
+    fgets(buffer, buff_size + 1, stdin);
+    printf("[PUT] se envio: %s\n", buffer);
     
     n = write(sock, buffer, strlen(buffer));
     if (n < 0)
         error("no se pudo escribir al socket");
 
+}
+
+void newline_to_zero(char *buff){
+    int i;
+    int n = strlen(buff);
+    for(i = 0; i < n; i++){
+        if(buff[i] == '\n'){
+            buff[i] = '\0';
+            return;
+        }
+    }
+}
+
+
+void parse_argumento(char *input){
+    printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
+    char *arg;
+    
+    int i, j, k, n;
+    k = 0;
+    j = 0;
+    for(i = 0; i < 256; i++){
+        if(input[i] == ':'){
+            j = i + 2;
+        }
+        if(input[i] == '\0')
+            k = i;
+    }
+    if(j == 0){
+        printf("NO SE ENCONTRO EL DELIMITADOR\n");
+        return;
+    }
+    n = k - j + 1;
+    arg = malloc(sizeof(char) * n);
+    
+    int ii;
+    for(ii = 0; ii < n; ii++){
+        arg[ii] = input[ii+j];
+        
+    }
+    bzero(input, 256);
+    strcpy(input, arg);
+    free(arg);
+    printf("ARGUMENTO PARSIADO: %s\n", input);
+    
 }
 
 int parse_msj(char *buff){
@@ -169,25 +223,27 @@ int check_end(char *buffer){
 }
 
 int check_cmd(char *cmd){
-    if(!strcmp(cmd, "USER")){
+    //printf("CHECK CMD REVISANDO: %s", cmd);
+    if(!strcmp(cmd, "USER\n")){
         return 1;
     }
-    else if(!strcmp(cmd, "PUT")){
+    else if(!strcmp(cmd, "PUT\n")){
+        printf("CHECK CMD: PUT\n");
         return 2;
     }
-    else if(!strcmp(cmd, "GET")){
+    else if(!strcmp(cmd, "GET\n")){
         return 3;
     }
-    else if(!strcmp(cmd, "LS")){
+    else if(!strcmp(cmd, "LS\n")){
         return 4;
     }
-    else if(!strcmp(cmd, "RM")){
+    else if(!strcmp(cmd, "RM\n")){
         return 5;
     }
-    else if(!strcmp(cmd, "SHARE")){
+    else if(!strcmp(cmd, "SHARE\n")){
         return 6;
     }
-    else if(!strcmp(cmd, "CLOSE")){
+    else if(!strcmp(cmd, "CLOSE\n")){
         return 7;
     }
     else{
