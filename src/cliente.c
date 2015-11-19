@@ -8,6 +8,8 @@
 #include <netdb.h>
 #include "cliente.h"
 
+int last_cmd;
+
 void error(char *msg)
 {
     printf("ERROR: %s\n", msg);
@@ -16,7 +18,7 @@ void error(char *msg)
 
 int main(int argc, char *argv[])
 {
-    int last_cmd = 0;
+    last_cmd = 0;
     int arg_1_enviado = 0;
     int buff_size_put = 0;
     int sockfd, portno, n;
@@ -57,6 +59,7 @@ int main(int argc, char *argv[])
     /* aca empieza a tomar input */
     
     while(1){
+        /* PUT */
         if(last_cmd == 2){
             printf("C: ");
             bzero(buffer,256);
@@ -73,12 +76,9 @@ int main(int argc, char *argv[])
                 last_cmd = 2;
             }
             else{
-                printf("[put] se envio 2do argumento: %s\n", buffer);
                 newline_to_zero(buffer);
                 parse_argumento(buffer);
-                printf("[put] 2do argumento to int: %d\n", atoi(buffer));
                 buff_size_put = atoi(buffer);
-                printf("buff size put: %s\n",buffer);
                 arg_1_enviado = 0;
                 last_cmd = 0;
                 
@@ -105,19 +105,64 @@ int main(int argc, char *argv[])
             hayamos recibido END
          */
         if(check_end(buffer)){
-            bzero(buffer,256);
-            n = read(sockfd, buffer, 255);
+            
+        /* GET */
+            if(last_cmd == 3){
+                int size;
+                /* se recibe ok o fail*/
+                bzero(buffer, 256);
+                n = read(sockfd, buffer, 256);
+                printf("[GET] recibido %s\n", buffer);
+                if(!strcmp("FAIL", buffer)){
+                    printf("ENTRO ACA\n");
+                    while(1){
+                        printf("leyendo mensajes de error\n");
+                        bzero(buffer, 256);
+                        n = read(sockfd, buffer, 256);
+                        printf("S: ");
+                        printf("%s\n", buffer);
+                        if(check_end_server(buffer))
+                            break;
+
+                    }
+                    last_cmd = 0;
+                    continue;
+                }
+                /* hay que recibir el tamaño del archivo */
+                bzero(buffer, 256);
+                n = read(sockfd, buffer, 256);
+                printf("[GET] recibido: size = %s\n", buffer);
+                parse_argumento(buffer);
+                size = atoi(buffer);
+                printf("[GET] tamaño guardado: %d\n", size);
+                /* preparar el buffer para recibir el archivo*/
+                char buff_file[size];
+                n = read(sockfd, buff_file, size);
                 
-            if (n < 0)
-                error("error leyendo del socket");
+
+                FILE *fp;
+                fp = fopen("nombrefijo.txt", "w");
+                fwrite(buff_file, 1, size, fp);
+                fclose(fp);
+                printf("archivo creado!\n");
+                last_cmd = 0;
                 
-            /* parsear el mensaje del server, aca se maneja que
-                el server haya mandando END
-             */
-            parse_msj(buffer);
+            }
+            else{
+
+                bzero(buffer,256);
+                n = read(sockfd, buffer, 255);
+                
+                if (n < 0)
+                    error("error leyendo del socket");
+                
+                /* parsear el mensaje del server, aca se maneja que
+                    el server haya mandando END
+                */
+                parse_msj(buffer);
+            }
         }
-        printf("guardamos el ultimo comando enviado\n");
-        last_cmd = check_cmd(buffer);
+        check_cmd(buffer);
     }
     
     return 0;
@@ -222,35 +267,29 @@ int check_end(char *buffer){
     return 1;
 }
 
-int check_cmd(char *cmd){
-    //printf("CHECK CMD REVISANDO: %s", cmd);
+void check_cmd(char *cmd){
     if(!strcmp(cmd, "USER\n")){
-        return 1;
+        last_cmd = 1;
     }
     else if(!strcmp(cmd, "PUT\n")){
         printf("CHECK CMD: PUT\n");
-        return 2;
+        last_cmd = 2;
     }
     else if(!strcmp(cmd, "GET\n")){
-        return 3;
+        last_cmd = 3;
     }
     else if(!strcmp(cmd, "LS\n")){
-        return 4;
+        last_cmd = 4;
     }
     else if(!strcmp(cmd, "RM\n")){
-        return 5;
+        last_cmd = 5;
     }
     else if(!strcmp(cmd, "SHARE\n")){
-        return 6;
+        last_cmd = 6;
     }
     else if(!strcmp(cmd, "CLOSE\n")){
-        return 7;
+        last_cmd = 7;
     }
-    else{
-        return 0;
-    }
-    
-    return 1;
 }
 
 int check_end_server(char *buffer){

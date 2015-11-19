@@ -11,6 +11,7 @@ typedef struct archivo
 {
     char *name;
     char *owner;
+    int size;
     int shared;
 } archivo;
 
@@ -29,4 +30,5 @@ int clean_out(char *, int);
 void ls(int sock);
 void create_file(char*,char*,int);
 void put_file(int);
+void run_get(int);
 #endif

@@ -183,7 +183,6 @@ void leer_comandos(int sock){
             input = get_input(sock);
             success_arg = parse_argumento(input);
             free(input);
-            printf("---viendo que wea el argumento\n");
             if(success_arg){
                 arg_1 = last_arg;
                 /* esperar END si el argumento era valido */
@@ -251,12 +250,72 @@ void run_accion(int sock){
             put_file(sock);
             break;
         case 3:
+            run_get(sock);
             break;
         case 4:
             ls(sock);
             break;
             
     }
+}
+
+void run_get(int sock){
+    char buffer[256];
+    char *buff_file;
+    char buff_size[20];
+    char *filename = arg_1;
+   int ok = 0;
+   int i, size;
+   for(i = 0; i < file_cnt; i++){
+       if(!strcmp(archivos[i].name, filename)){
+           size = archivos[i].size;
+           if(!strcmp(archivos[i].owner, user))
+               ok = 1;
+           printf("Se encontro el archivo. Tamaño: %d\n",size);
+           break;
+       }
+   }
+   if(ok){
+       memset(buffer, '\0', 256);
+       strcpy(buffer, "Ok");
+       printf("ENVIANDO: %s\n", buffer);
+       write(sock, buffer, 256);
+
+       sprintf(buff_size, "%d", size);
+       memset(buffer, '\0', 256);
+       strcpy(buffer, "Length: ");
+       strcat(buffer, buff_size);
+       printf("ENVIANDO: %s\n", buffer);
+       write(sock, buffer, 256);
+        
+       buff_file = malloc(sizeof(char) * size);
+       FILE *fp = fopen(filename, "r");
+       fread(buff_file, 1, size, fp);
+       fclose(fp);
+        
+       printf("ENVIANDO ARCHIVO\n");
+       write(sock, buff_file, size);
+       free(buff_file);
+   } 
+   else{
+       memset(buffer, '\0', 256);
+       strcpy(buffer, "FAIL");
+       printf("ENVIANDO: %s\n", buffer);
+       write(sock, buffer, 256);
+        
+       memset(buffer, '\0', 256);
+       strcpy(buffer, "Message: blablabla");
+       printf("ENVIANDO: %s\n", buffer);
+       
+       memset(buffer, '\0', 256);
+       strcpy(buffer, "END");
+       printf("ENVIANDO: %s\n", buffer);
+       
+         
+   }
+
+
+
 }
 
 void set_user(int sock){
@@ -322,12 +381,15 @@ int clean_out(char *out, int n){
 }
 
 void create_file(char *buff, char *name, int size){
+    char *nombre = malloc(sizeof(char) * 256);
+    strcpy(nombre, user);
     int i;
     int listo = 0;
     for(i = 0; i < file_cnt; i++){
         if(archivos[i].shared == -1){
             archivos[i].name = name;
-            archivos[i].owner = user;
+            archivos[i].owner = nombre;
+            archivos[i].size = size;
             archivos[i].shared = 1;
             listo = 1;
         }
