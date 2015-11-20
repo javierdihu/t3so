@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
 }
 
 void put(int sock, int buff_size){
-    printf("[PUT] enviando archivo tamaño %d\n", buff_size);
+    printf("[PUT] ingrese datos (%d bytes) del archivo: \n", buff_size);
     int n;
     char buffer[buff_size];
     bzero(buffer, buff_size);
