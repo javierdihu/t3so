@@ -15,7 +15,6 @@ typedef struct archivo
     int shared;
 } archivo;
 
-void dostuff(int);
 struct config get_config(char *);
 void error(char *);
 void leer_comandos(int);
@@ -31,4 +30,8 @@ void ls(int sock);
 void create_file(char*,char*,int);
 void put_file(int);
 void run_get(int);
+void run_ls(int);
+void send_mensaje(char *, int);
+void run_close(int);
+
 #endif

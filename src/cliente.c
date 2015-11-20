@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
             printf("C: ");
             bzero(buffer,256);
             fgets(buffer,255,stdin);
-            printf("[put] CLIENTE ENVIA MSJ : %s[+]\n", buffer); 
+            //printf("[put] CLIENTE ENVIA MSJ : %s", buffer); 
             
             n = write(sockfd, buffer, strlen(buffer));
             if (n < 0)
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         printf("C: ");
         bzero(buffer,256);
         fgets(buffer,255,stdin);
-        printf("[+] CLIENTE ENVIA MSJ : %s[+]\n", buffer); 
+        //printf("[+] CLIENTE ENVIA MSJ : %s", buffer); 
         
         /* escribir en el socket */
         //printf("[+] ESCRIBIENDO %s\n", buffer);
@@ -104,6 +104,7 @@ int main(int argc, char *argv[])
         /* leer del socket despues que hayamos mandado END y hasta que 
             hayamos recibido END
          */
+
         if(check_end(buffer)){
             
         /* GET */
@@ -112,7 +113,7 @@ int main(int argc, char *argv[])
                 /* se recibe ok o fail*/
                 bzero(buffer, 256);
                 n = read(sockfd, buffer, 256);
-                printf("[GET] recibido %s\n", buffer);
+                printf("[S: %s\n", buffer);
                 if(!strcmp("FAIL", buffer)){
                     while(1){
                         memset(buffer,'\0', 256);
@@ -148,8 +149,53 @@ int main(int argc, char *argv[])
                     fclose(fp);
                     printf("archivo creado!\n");
                     last_cmd = 0;
+                    continue;
                 }
                 
+            }
+            if(last_cmd == 4){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if (n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+                    
+                    if(check_end_server(buffer))
+                        break;
+                }
+                last_cmd = 0;
+                continue;
+            }
+            if(last_cmd == 7){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if(n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+
+                    if(check_end_server(buffer)){
+                        close(sockfd);
+                        printf("TERMINANDO CONEXION Y CERRANDO\n");
+                        exit(0);
+                    }
+                }
+            }
+            if(last_cmd == 1){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if(n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+
+                    if(check_end_server(buffer)){
+                        break;
+                    }
+                }
+                last_cmd = 0;
+                continue;
             }
             else{
                 /* esto procesa USER */
@@ -198,7 +244,7 @@ void newline_to_zero(char *buff){
 
 
 void parse_argumento(char *input){
-    printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
+    //printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
     char *arg;
     
     int i, j, k, n;
@@ -226,7 +272,7 @@ void parse_argumento(char *input){
     bzero(input, 256);
     strcpy(input, arg);
     free(arg);
-    printf("ARGUMENTO PARSIADO: %s\n", input);
+    //printf("ARGUMENTO PARSIADO: %s\n", input);
     
 }
 
@@ -275,7 +321,6 @@ void check_cmd(char *cmd){
         last_cmd = 1;
     }
     else if(!strcmp(cmd, "PUT\n")){
-        printf("CHECK CMD: PUT\n");
         last_cmd = 2;
     }
     else if(!strcmp(cmd, "GET\n")){

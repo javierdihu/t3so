@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -47,6 +48,7 @@ int main (int argc, char *argv[])
         archivos[iii].name = NULL;
         archivos[iii].owner = NULL;
         archivos[iii].shared = -1;
+        /* SE REPRESENTA UN ESPACIO VACIO EN LA LISTA CON SHARED -1*/
     }
     
     
@@ -163,13 +165,13 @@ void leer_comandos(int sock){
     int success_arg = 0;
     char *args;
     
-    printf("[*] ESPERANDO COMANDO\n");
+    printf("[SERVER] ESPERANDO COMANDO\n");
     char *input = get_input(sock);
     
     /* parsear comando, retorna 1 si el comando era valido */
     success_cmd = parse_comando(input);
     if(success_cmd)
-        printf("comando valido\n");
+        printf("[SERVER] comando VALIDO ingresado\n");
     free(input);
     
     /* leer argumentos si el comando anterior fue valido */
@@ -178,15 +180,32 @@ void leer_comandos(int sock){
            last_cmd == 3 ||
            last_cmd == 5 ||
            last_cmd == 6){
-            
-            printf("[*] ESPERANDO ARGUMENTO\n");
+            if(last_cmd == 1)
+                printf("[USER] ");
+            if(last_cmd == 3)
+                printf("[GET] ");
+            if(last_cmd == 5)
+                printf("[RM] ");
+            if(last_cmd == 6)
+                printf("[SHARE] ");
+
+            printf("ESPERANDO ARGUMENTO\n");
             input = get_input(sock);
             success_arg = parse_argumento(input);
             free(input);
             if(success_arg){
                 arg_1 = last_arg;
                 /* esperar END si el argumento era valido */
-                printf("[*] ESPERANDO END\n");
+                if(last_cmd == 1)
+                    printf("[USER] ");
+                if(last_cmd == 3)
+                    printf("[GET] ");
+                if(last_cmd == 5)
+                    printf("[RM] ");
+                if(last_cmd == 6)
+                    printf("[SHARE] ");
+                printf("ESPERANDO END\n");
+
                 input = get_input(sock);
                 if(!strcmp(input, "END")){
                     run_accion(sock);
@@ -194,30 +213,40 @@ void leer_comandos(int sock){
                 free(input);
             }
             else{
-                printf("[*]FALLO LECTURA ARGUMENTO\n");
+
+                if(last_cmd == 1)
+                    printf("[USER] ");
+                if(last_cmd == 3)
+                    printf("[GET] ");
+                if(last_cmd == 5)
+                    printf("[RM] ");
+                if(last_cmd == 6)
+                    printf("[SHARE] ");
+                printf("FALLO LECTURA ARGUMENTO\n");
             }
         }
         else if(last_cmd == 2){
             /* manejar PUT */
+            printf("[PUT] ESPERANDO PRIMER ARGUMENTO\n");
             input = get_input(sock);
             success_arg = parse_argumento(input);
             free(input);
             if(success_arg){
                 arg_1 = last_arg;
-                printf("ARG 1 LISTO: %s\n", arg_1);
+                printf("[PUT] ESPERANDO SEGUNDO ARGUMENTO\n");
                 input = get_input(sock);
                 success_arg = parse_argumento(input);
                 free(input);
                 if(success_arg){
                     arg_2 = last_arg;
-                    printf("ARG 2 LISTO: %s\n", arg_2);
                     /* con el argumento 2 sabemos el tamaño del buffer
                         que necesitamos para leer el archivo
                      */
                     int size = atoi(arg_2);
                     new_file = get_file(sock, size);
                     
-                    printf("falta el END\n");
+                    
+                    printf("[PUT] ESPERANDO END\n");
                     /* tenemos los dos argumentos listos, esperar END */
                     input = get_input(sock);
                     if(!strcmp(input, "END")){
@@ -253,7 +282,10 @@ void run_accion(int sock){
             run_get(sock);
             break;
         case 4:
-            ls(sock);
+            run_ls(sock);
+            break;
+        case 7:
+            run_close(sock);
             break;
             
     }
@@ -265,31 +297,41 @@ void run_get(int sock){
     char *buff_file;
     char buff_size[20];
     char *filename = arg_1;
+    char *owner;
+    int owner_fail = 0;
+    int shared_fail = 0;
    int ok = 0;
    int i, size;
    for(i = 0; i < file_cnt; i++){
-       if(!strcmp(archivos[i].name, filename)){
-           size = archivos[i].size;
-           if(!strcmp(archivos[i].owner, user)){
+       if(archivos[i].shared != -1){
+           if(!strcmp(archivos[i].name, filename)){
+            size = archivos[i].size;
+            if(!strcmp(archivos[i].owner, user) || archivos[i].shared == 1){
                ok = 1;
-               printf("[GET] dueño: %s\n", archivos[i].owner);
-               printf("[GET] user pidiendolo: %s\n", user);
-           }
-           printf("Se encontro el archivo. Tamaño: %d\n",size);
-           break;
+            }
+            else if(!strcmp(archivos[i].owner, user)){
+               owner = archivos[i].owner;
+               owner_fail = 1;
+            }
+            else if(archivos[i].shared == 0){
+               shared_fail = 1;
+            }
+
+            printf("[GET] Se encontro el archivo. Tamaño: %d\n",size);
+            break;
+         }
        }
    }
    if(ok){
+       printf("[GET] Preparando para enviar archivo..\n");
        memset(buffer, '\0', 256);
        strcpy(buffer, "OK");
-       printf("ENVIANDO: %s\n", buffer);
        write(sock, buffer, 256);
 
        sprintf(buff_size, "%d", size);
        memset(buffer, '\0', 256);
        strcpy(buffer, "Length: ");
        strcat(buffer, buff_size);
-       printf("ENVIANDO: %s\n", buffer);
        write(sock, buffer, 256);
         
        buff_file = malloc(sizeof(char) * size);
@@ -297,25 +339,35 @@ void run_get(int sock){
        fread(buff_file, 1, size, fp);
        fclose(fp);
         
-       printf("ENVIANDO ARCHIVO\n");
        write(sock, buff_file, size);
        free(buff_file);
    } 
    else{
+       printf("[GET] FAIL\n");
        int N;
        memset(buffer, '\0', 256);
        strcpy(buffer, "FAIL");
-       printf("ENVIANDO: %s\n", buffer);
        N = write(sock, buffer, 256);
         
+       if(shared_fail && owner_fail){
+        memset(buffer, '\0', 256);
+        strcpy(buffer, "Message: File ");
+        strcat(buffer, filename);
+        strcat(buffer, " is owned by ");
+        strcat(buffer, owner);
+        strcat(buffer, "and not shared");
+        send_mensaje(buffer, sock);
+       }
+       else{
+           send_mensaje("Message: File not found", sock);
+       }
+        /*
        memset(buffer, '\0', 256);
        strcpy(buffer, "Message: blablabla");
-       printf("ENVIANDO: %s\n", buffer);
        write(sock, buffer, 256);
-       
+       */
        memset(buffer, '\0', 256);
        strcpy(buffer, "END");
-       printf("ENVIANDO: %s\n", buffer);
        write(sock, buffer, 256);
          
    }
@@ -325,48 +377,69 @@ void run_get(int sock){
 }
 
 void set_user(int sock){
+    printf("[USER] Seteando user..\n");
+    char out[256];
     memset(user, '\0', 256);
     strcpy(user, arg_1);
     
-    /*
-        Manda el output a lo bruto, concatena todo el mensaje
-        asi: Ok#User identified as: user#END#
-     
-     */
-    char out[256];
+    send_mensaje("Ok", sock);
+
     memset(out, '\0', 256);
-    char *end = "END#\0";
-    char *msj = "Ok#User identified as: \0";
-    int i, j ,k;
-    for(i = 0; i < 256; i++){
-        out[i] = msj[i];
-        if(msj[i] == '\0')
-            break;
-    }
-    
-    for(k = 0; k < strlen(user); k++){
-        out[k + i] = user[k];
-    }
-    i = i + k;
-    out[i] = '#';
-    i+=1;
-    for(j = 0; j < 4; j++){
-        out[i + j] = end[j];
-    }
-    
-    send_msg(out, sock);
-    
+    strcpy(out, "User identified as: ");
+    strcat(out, user);
+    send_mensaje(out, sock);
+    send_mensaje("END", sock);
     free(arg_1);
 }
 
-void ls(int sock){
-    
+void run_ls(int sock){
+    printf("[LS] LISTANDO REPOSITORIO\n");
+    char buffer[256];
+    int i;
+    send_mensaje("Ok", sock);
+    send_mensaje("Repository list: ", sock);
+    for(i = 0; i < file_cnt; i++){
+        memset(buffer, '\0', 256); 
+        if(archivos[i].shared != -1){
+            strcpy(buffer, archivos[i].name);
+            strcat(buffer, "; ");
+            strcat(buffer, archivos[i].owner);
+            strcat(buffer, "; ");
+            if(archivos[i].shared == 0)
+                strcat(buffer, "notshared");
+            else
+                strcat(buffer, "shared");
+            send_mensaje(buffer, sock);
+        }
+    }
+    send_mensaje("END", sock);
+}
+
+void run_close(int sock){
+    printf("[CLOSE] ENVIANDO CONFIRMACION\n");
+    send_mensaje("Ok", sock);
+    send_mensaje("Bye!", sock);
+    send_mensaje("END", sock);
+    printf("[SERVER] Cerrando conexion con socket %d\n", sock);
+    printf("[SERVER] Esperando nuevas conexiones..\n");
+    close(sock);
+    exit(0);
+}
+
+void send_mensaje(char *msg, int sock){
+    int n;
+    char buffer[256];
+    memset(buffer, '\0', 256);
+    strcpy(buffer, msg);
+    n = write(sock, buffer, 256);
+    if(n < 0)
+        printf("[SERVER] ERROR AL ENVIAR MENSAJE\n");
 }
 
 void send_msg(char *msg, int sock){
     int n;
     
-    printf("[*] SE INTENTA MANDAR: %s\n", msg);
+    //printf("[*] SE INTENTA MANDAR: %s\n", msg);
     
     n = write(sock, msg, strlen(msg));
     if (n < 0) error ("ERROR writing to socket");
@@ -398,6 +471,7 @@ void create_file(char *buff, char *name, int size){
             archivos[i].size = size;
             archivos[i].shared = 1;
             listo = 1;
+            break;
         }
     }
     /* manejar caso de que ya esten llena la lista de archivos */
@@ -445,7 +519,7 @@ void put_file(int sock){
 }
 
 int parse_argumento(char *input){
-    printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
+    //printf("[*] PARSEANDO ARGUMENTO: %s\n", input);
     char *arg;
     
     int i, j, k, n;
@@ -471,7 +545,7 @@ int parse_argumento(char *input){
         
     }
     last_arg = arg;
-    printf("ARGUMENTO PARSIADO: %s\n", arg);
+    //printf("ARGUMENTO PARSIADO: %s\n", arg);
     return 1;
     
 }
@@ -489,12 +563,12 @@ char *get_input(int sock){
         error("ERROR leyendo del socket");
     
     buffer[n - 1] = '\0';
-    printf("[*] LEIDO : %s [*]\n", buffer);
+    //printf("[*] LEIDO : %s [*]\n", buffer);
     return buffer;
 }
 
 char *get_file(int sock, int size){
-    printf("ESPERANDO ARCHIVO TAMAÑO %d\n", size);
+    printf("[PUT] ESPERANDO ARCHIVO TAMAÑO %d\n", size);
     int n;
     char *buffer = malloc(sizeof(char) * (size + 1));
     
@@ -505,7 +579,7 @@ char *get_file(int sock, int size){
         error("ERROR leyendo del socket");
     
     buffer[n - 1] = '\0';
-    printf("[*] LEIDO archivo : %s [*]\n", buffer);
+    //printf("[*] LEIDO archivo : %s [*]\n", buffer);
     return buffer;
 }
 
@@ -532,7 +606,7 @@ int parse_comando(char *cmd){
         last_cmd = 7;
     }
     else{
-        error("COMANDO INVALIDO");
+        printf("COMANDO %s NO EXISTE\n", cmd);
         return 0;
     }
     
@@ -540,37 +614,3 @@ int parse_comando(char *cmd){
 }
 
 
-void dostuff (int sock)
-{
-    int n;
-    char buffer[256];
-    
-    bzero(buffer,256);
-    n = read(sock,buffer,255);
-    
-    if (n < 0) error("ERROR reading from socket");
-    
-    printf("Here is the message: %s\n",buffer);
-    /* respuesta */
-    n = write(sock,"I got your message",18);
-    
-    if (n < 0) error("ERROR writing to socket");
-    
-    
-    /* ejemplo ls */
-    FILE *fp;
-    char path[1035];
-    char ans[4000];
-    fp = popen("/bin/ls", "r");
-    if (fp == NULL) {
-        printf("Failed to run command\n" );
-        exit(1);
-    }
-    while (fgets(path, sizeof(path)-1, fp) != NULL)
-    {
-        printf("%s", path);
-        strcat(ans, path);
-    }
-    
-    pclose(fp);
-}
