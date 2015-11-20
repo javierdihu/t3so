@@ -33,5 +33,7 @@ void run_get(int);
 void run_ls(int);
 void send_mensaje(char *, int);
 void run_close(int);
+void run_rm(int);
+void run_share(int);
 
 #endif

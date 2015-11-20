@@ -284,6 +284,12 @@ void run_accion(int sock){
         case 4:
             run_ls(sock);
             break;
+        case 5:
+            run_rm(sock);
+            break;
+        case 6:
+            run_share(sock);
+            break;
         case 7:
             run_close(sock);
             break;
@@ -415,6 +421,101 @@ void run_ls(int sock){
     send_mensaje("END", sock);
 }
 
+void run_rm(int sock){
+    printf("[RM] Buscando archivo para borrar..\n");
+    char out[256];
+    int owner_fail = 0;
+    int ok = 0;
+    int i;
+    for(i = 0; i < file_cnt; i++){
+        if(archivos[i].shared != -1){
+            if(!strcmp(archivos[i].name, arg_1)){
+                if(!strcmp(archivos[i].owner, user)){
+                    ok = 1;
+                    remove(archivos[i].name);
+                    archivos[i].name = NULL;
+                    archivos[i].owner = NULL;
+                    archivos[i].shared = -1;
+                    archivos[i].size = 0;
+                }
+                else
+                    owner_fail = 1;
+            }
+        }
+    }
+    if(ok){
+        send_mensaje("Ok", sock);
+        memset(out, '\0', 256);
+        strcpy(out, "Message: file ");
+        strcat(out, arg_1);
+        strcat(out, " deleted");
+        send_mensaje(out, sock);
+        send_mensaje("END", sock);
+    }
+    else{
+        send_mensaje("FAIL", sock);
+        if(owner_fail)
+            send_mensaje("Message: ERROR no eres el dueño del archivo", sock);
+        else
+            send_mensaje("Message: Archivo no existe!", sock);
+        send_mensaje("END", sock);
+    }
+}
+
+
+void run_share(int sock){
+    printf("[SHARE] Buscando archivo..\n");
+    char out[256];
+    int owner_fail = 0;
+    int shared;
+    int ok = 0;
+    int i;
+    for(i = 0; i < file_cnt; i++){
+        if(archivos[i].shared != -1){
+            if(!strcmp(archivos[i].name, arg_1)){
+                if(!strcmp(archivos[i].owner, user)){
+                    ok = 1;
+                    if(archivos[i].shared == 0){
+                        archivos[i].shared = 1;
+                        shared = 1;
+                        printf("[SHARE] archivo marcado SHARED\n");
+                        break;
+                    }
+
+                    if(archivos[i].shared == 1){
+                        archivos[i].shared = 0;
+                        shared = 0;
+                        printf("[SHARE] archivo marcado UNSHARED\n");
+                        break;
+                    }
+                }
+                else
+                    owner_fail = 1;
+            }
+        }
+    }
+    if(ok){
+        send_mensaje("Ok", sock);
+        memset(out, '\0', 256);
+        strcpy(out, "Message: file ");
+        strcat(out, arg_1);
+        if(shared)
+            strcat(out, " shared");
+        else
+            strcat(out, " unshared");
+        send_mensaje(out, sock);
+        send_mensaje("END", sock);
+    }
+    else{
+        send_mensaje("FAIL", sock);
+        if(owner_fail)
+            send_mensaje("Message: ERROR no eres el dueño del archivo", sock);
+        else
+            send_mensaje("Message: Archivo no existe!", sock);
+        send_mensaje("END", sock);
+    }
+}
+
 void run_close(int sock){
     printf("[CLOSE] ENVIANDO CONFIRMACION\n");
     send_mensaje("Ok", sock);
@@ -492,7 +593,15 @@ void put_file(int sock){
     create_file(new_file, arg_1, atoi(arg_2));
     free(arg_2);
     
-    
+    char out[256];
+    send_mensaje("Ok", sock);
+    memset(out, '\0', 256);
+    strcpy(out, "File saved as: ");
+    strcat(out, arg_1);
+    send_mensaje(out, sock);
+    send_mensaje("END", sock);
+
+    /*
     char out[256];
     memset(out, '\0', 256);
     char *end = "END#\0";
@@ -515,7 +624,7 @@ void put_file(int sock){
     }
     
     send_msg(out, sock);
-    
+    */
 }
 
 int parse_argumento(char *input){

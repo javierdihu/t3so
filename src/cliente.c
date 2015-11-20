@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
                 parse_argumento(buffer);
                 buff_size_put = atoi(buffer);
                 arg_1_enviado = 0;
-                last_cmd = 0;
+                last_cmd = 8;
                 
                 /* enviar archivo con buffer tamaño nuevo*/
                 put(sockfd, buff_size_put);
@@ -167,6 +167,36 @@ int main(int argc, char *argv[])
                 last_cmd = 0;
                 continue;
             }
+
+            if(last_cmd == 5){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if (n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+                    
+                    if(check_end_server(buffer))
+                        break;
+                }
+                last_cmd = 0;
+                continue;
+            }
+
+            if(last_cmd == 6){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if (n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+                    
+                    if(check_end_server(buffer))
+                        break;
+                }
+                last_cmd = 0;
+                continue;
+            }
             if(last_cmd == 7){
                 while(1){
                     memset(buffer, '\0', 256);
@@ -183,6 +213,21 @@ int main(int argc, char *argv[])
                 }
             }
             if(last_cmd == 1){
+                while(1){
+                    memset(buffer, '\0', 256);
+                    n = read(sockfd, buffer, 256);
+                    if(n < 0)
+                        printf("ERROR AL LEER MENSAJE\n");
+                    printf("S: %s\n", buffer);
+
+                    if(check_end_server(buffer)){
+                        break;
+                    }
+                }
+                last_cmd = 0;
+                continue;
+            }
+            if(last_cmd == 8){
                 while(1){
                     memset(buffer, '\0', 256);
                     n = read(sockfd, buffer, 256);
@@ -300,7 +345,7 @@ int parse_msj(char *buff){
                 break;
             }
         }
-        printf("S: %s\n", buff2);
+        printf("WAT: %s\n", buff2);
     }
     
     return ret;
